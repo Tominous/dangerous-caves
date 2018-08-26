@@ -1,0 +1,12 @@
+main: mainPackage.main
+name: DangerousCaves
+version: 1.0
+author: Evil_Boi
+description: Adds and improves mechanics in caves.
+
+commands:
+  testc:
+    description: Simple test command
+    usage: /testc
+    permission: dangerc.testc
+    permission-message: You don't have the dangerc.testc permission.

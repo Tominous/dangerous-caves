@@ -160,6 +160,14 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 		config.addDefault("Enable Ambient Sounds ", true);
 		config.addDefault("Enable Cave Temperature ", true);
 		config.addDefault("Enable Cave Aging ", true);
+		config.addDefault("::::Higher equals lower chance!::::", "");
+		config.addDefault("Cave Aging Chance ", 2);
+		config.addDefault("Cave Aging Change Chance ", 39);
+		config.addDefault("Cave Ambience Chance ", 4);
+		config.addDefault("Cave Walk Temp Chance ", 1449);
+		config.addDefault("Cave Break Block Temp Chance ", 1450);
+		config.addDefault("Cave-In Chance ", 399);
+		config.addDefault("Darkness Spawn Chance ", 0);
 		config.options().copyDefaults(true);
 		saveConfig();
 	}
@@ -276,7 +284,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	public void deleteLightLevel(CreatureSpawnEvent event) {
 		if(hungerdark==true) {
 		Entity e = event.getEntity();
-		if(e.getLocation().subtract(0, 1, 0).getBlock()==null) {
+		if(e.getLocation().subtract(0, 1, 0).getBlock()==null||randor.nextInt(config.getInt("Darkness Spawn Chance ")+1)!=0) {
 			return;
 		}
 		if (e != null && !e.isDead()) {
@@ -382,7 +390,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	public void doCaveSounds() {
 		if (wor != null) {
 			for (Player p : wor.getPlayers()) {
-				if (randor.nextInt(5) == 1) {
+				if (randor.nextInt(config.getInt("Cave Ambience Chance ")+1) == 0) {
 					int choice = randor.nextInt(6);
 					if (p.getLocation().getY() < 47) {
 						if (p.getLocation().getBlock().getLightFromSky() <= 1) {
@@ -432,7 +440,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 				&& p.getLocation().subtract(0, 1, 0).getBlock().getType() != Material.DIRT)) {
 			return;
 		}
-		if (randor.nextInt(3) == 1) {
+		if (randor.nextInt(config.getInt("Cave Aging Chance ")+1) == 0) {
 			if (wor != null) {
 				Random rand = new Random();
 				Location loc = p.getLocation();
@@ -446,7 +454,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 							double dist = (cx - x) * (cx - x) + (cz - z) * (cz - z) + ((cy - y) * (cy - y));
 
 							if (dist < radius * radius) {
-								if (rand.nextInt(40) == 1) {
+								if (rand.nextInt(config.getInt("Cave Aging Change Chance ")+1) == 0) {
 									Location l = new Location(loc.getWorld(), x, y, z);
 									doCaveBlocks(l.getBlock(), p);
 								}
@@ -559,7 +567,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	public void onWalk(PlayerMoveEvent event) {
 	if(cavetemp==true) {
 	Player p = event.getPlayer();
-	if(randor.nextInt(1450)==1) {
+	if(randor.nextInt(config.getInt("Cave Walk Temp Chance ")+1)==0) {
 		if(p.getLocation().getY()<30&&(p.getGameMode()!=GameMode.CREATIVE)) {
 		if(p.getInventory().contains(Material.POTION)||p.getInventory().contains(Material.SPLASH_POTION)||p.getInventory().contains(Material.SNOW)||p.getInventory().contains(Material.SNOW_BALL)||p.getInventory().contains(Material.SNOW_BLOCK)||p.getInventory().contains(Material.WATER_BUCKET)||p.getInventory().contains(Material.ICE)||p.getInventory().contains(Material.FROSTED_ICE)||p.getInventory().contains(Material.PACKED_ICE)) {
 		}
@@ -598,7 +606,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	public void onBreakB(BlockBreakEvent dr) {
 		Player p = dr.getPlayer();
 		if(caveins==true) {
-		if(randor.nextInt(400)==1) {
+		if(randor.nextInt(config.getInt("Cave-In Chance ")+1)==0) {
 		if(dr.getPlayer().getLocation().getY()<25) {
 			if((dr.getBlock().getType()==Material.STONE||dr.getBlock().getType()==Material.DIRT)&&(p.getLocation().subtract(0, 1, 0).getBlock().getType()==Material.STONE||p.getLocation().subtract(0, 1, 0).getBlock().getType()==Material.DIRT)) {
 			if(p.getInventory().contains(Material.RABBIT_FOOT)) {
@@ -638,7 +646,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 		}
 		}
 		if(cavetemp==true) {
-		if(randor.nextInt(150)==1) {
+		if(randor.nextInt(config.getInt("Cave Break Block Temp Chance ")+1)==0) {
 			if(p.getLocation().getY()<30&&(p.getGameMode()!=GameMode.CREATIVE)) {
 			if(p.getInventory().contains(Material.POTION)||p.getInventory().contains(Material.SPLASH_POTION)||p.getInventory().contains(Material.SNOW)||p.getInventory().contains(Material.SNOW_BALL)||p.getInventory().contains(Material.SNOW_BLOCK)||p.getInventory().contains(Material.WATER_BUCKET)||p.getInventory().contains(Material.ICE)||p.getInventory().contains(Material.FROSTED_ICE)||p.getInventory().contains(Material.PACKED_ICE)) {
 			}

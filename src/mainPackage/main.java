@@ -138,7 +138,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 				if (wor != null) {
 					if (caveage == true) {
 					for (Player p : wor.getPlayers()) {
-						//doCaveStuff(p);
+						doCaveStuff(p);
 					}
 					}
 					if(ambients == true) {
@@ -190,6 +190,9 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 		if (command.getName().equalsIgnoreCase("testc")) {
 			if (sender instanceof Player) {
+				for (Player p : wor.getPlayers()) {
+					doCaveStuff(p);
+				}
 				return true;
 			}
 		}

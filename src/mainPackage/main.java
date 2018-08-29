@@ -11,6 +11,7 @@ import java.util.Random;
 import org.bukkit.Achievement;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -27,8 +28,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.craftbukkit.v1_12_R1.CraftWorld;
-import org.bukkit.craftbukkit.v1_12_R1.entity.CraftPlayer;
+import org.bukkit.entity.Bat;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -74,9 +74,14 @@ import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerVelocityEvent;
+import org.bukkit.generator.BlockPopulator;
+import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.material.MaterialData;
 import org.bukkit.material.Vine;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -86,12 +91,10 @@ import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.util.Vector;
 
-import net.minecraft.server.v1_12_R1.BlockPosition;
-import net.minecraft.server.v1_12_R1.Packet;
-import net.minecraft.server.v1_12_R1.PacketPlayOutBed;
-import net.minecraft.server.v1_12_R1.PacketPlayOutBlockChange;
-import net.minecraft.server.v1_12_R1.PacketPlayOutGameStateChange;
+import mainPackage.CaveGenerator;
+import mainPackage.DressCursed;
 
 public class main extends JavaPlugin implements Listener, CommandExecutor{
 
@@ -107,6 +110,10 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	boolean ambients = false;
 	boolean cavetemp = false;
 	boolean caveage = false;
+	boolean caveents = false;
+	static boolean cavestruct = false;
+	static int cavechance = 3;
+	public static List<String> mobNames = new ArrayList<String>();
 	
 	@Override
 	public void onEnable() {
@@ -115,19 +122,41 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 		if(!this.getServer().getOnlinePlayers().isEmpty()) {
 			for(Player start : this.getServer().getOnlinePlayers()) {
 				wor = start.getWorld();
+				/*List<BlockPopulator> bp = new ArrayList<BlockPopulator>(start.getWorld().getPopulators());
+				for(BlockPopulator bps : bp) {
+					if(bps instanceof CaveGenerator) {
+						start.getWorld().getPopulators().remove(bps);
+					}
+				}*/
+				start.getWorld().getPopulators().clear();
+				console.sendMessage("Ignore this: " + start.getWorld().getPopulators());
+				wor.getPopulators().add(new CaveGenerator());
 				caveins = config.getBoolean("Enable Cave-Ins ");
 				hungerdark = config.getBoolean("Enable Hungering Darkness ");
 				ambients = config.getBoolean("Enable Ambient Sounds ");
 				cavetemp = config.getBoolean("Enable Cave Temperature ");
 				caveage = config.getBoolean("Enable Cave Aging ");
+				caveents = config.getBoolean("Enable Cave Monsters ");
+				cavechance = config.getInt("Cave Structure Chance ");
+				cavestruct = config.getBoolean("Enable Cave Structures ");
 				break;
 			}
 		}
+		mobNames.add("The Darkness");
+		mobNames.add("Watcher");
+		mobNames.add("TnT Infused Creeper");
+		mobNames.add("Dead Miner");
+		mobNames.add("Lava Creeper");
+		mobNames.add("Magma Monster");
+		mobNames.add("Smoke Demon");
+		mobNames.add("Crying Bat");
+		mobNames.add("Alpha Spider");
+		mobNames.add("Hexed Armor");
 		scheduler = getServer().getScheduler();
 		scheduler.scheduleSyncRepeatingTask(this, new Runnable() {
 			@Override
 			public void run() {
-				if(hungerdark==true) {
+				if(hungerdark==true||caveents==true) {
 				betterEffectLooper();
 				}
 			}
@@ -147,6 +176,15 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 				}
 			}
 		}, 0L, /* 600 */7000L);
+
+	}
+	
+	private static boolean getLookingAt2(LivingEntity player, LivingEntity player1) {
+		Location eye = player.getEyeLocation();
+		Vector toEntity = ((LivingEntity) player1).getEyeLocation().toVector().subtract(eye.toVector());
+		double dot = toEntity.normalize().dot(eye.getDirection());
+
+		return dot > 0.70D;
 	}
 	
 	@Override
@@ -160,6 +198,8 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 		config.addDefault("Enable Ambient Sounds ", true);
 		config.addDefault("Enable Cave Temperature ", true);
 		config.addDefault("Enable Cave Aging ", true);
+		config.addDefault("Enable Cave Monsters ", true);
+		config.addDefault("Enable Cave Structures ", true);
 		config.addDefault("::::Higher equals lower chance!::::", "");
 		config.addDefault("Cave Aging Chance ", 2);
 		config.addDefault("Cave Aging Change Chance ", 39);
@@ -167,7 +207,8 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 		config.addDefault("Cave Walk Temp Chance ", 1449);
 		config.addDefault("Cave Break Block Temp Chance ", 1450);
 		config.addDefault("Cave-In Chance ", 399);
-		config.addDefault("Darkness Spawn Chance ", 0);
+		config.addDefault("Darkness Spawn Chance ", 1);
+		config.addDefault("Cave Structure Chance ", 1);
 		config.options().copyDefaults(true);
 		saveConfig();
 	}
@@ -176,11 +217,23 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	public void setWorld(PlayerJoinEvent e) {
 		if(wor==null) {
 			wor = e.getPlayer().getWorld();
+			/*List<BlockPopulator> bp = new ArrayList<BlockPopulator>(e.getPlayer().getWorld().getPopulators());
+			for(BlockPopulator bps : bp) {
+				if(bps instanceof CaveGenerator) {
+					e.getPlayer().getWorld().getPopulators().remove(bps);
+				}
+			}*/
+			wor.getPopulators().clear();
+			wor.getPopulators().add(new CaveGenerator());
+			console.sendMessage("" + e.getPlayer().getWorld().getPopulators());
 			caveins = config.getBoolean("Enable Cave-Ins ");
 			hungerdark = config.getBoolean("Enable Hungering Darkness ");
 			ambients = config.getBoolean("Enable Ambient Sounds ");
 			cavetemp = config.getBoolean("Enable Cave Temperature ");
 			caveage = config.getBoolean("Enable Cave Aging ");
+			caveents = config.getBoolean("Enable Cave Monsters ");
+			cavechance = config.getInt("Cave Structure Chance ");
+			cavestruct = config.getBoolean("Enable Cave Structures ");
 		}
 		else {
 		}
@@ -190,15 +243,86 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 		if (command.getName().equalsIgnoreCase("testc")) {
 			if (sender instanceof Player) {
-				for (Player p : wor.getPlayers()) {
-					doCaveStuff(p);
+					if(args!=null&&args.length==1) {
+						Location loc = ((Player) sender).getLocation();
+						int[][][] rock1 = { { {0, 1, 0}, {0, 0, 0}, {0, 0, 0} },
+											{ {0, 1, 1}, {0, 1, 0}, {0, 1, 0} },
+											{ {0, 0, 0}, {0, 0, 0}, {0, 0, 0} } };
+						if(args[0].toString().toLowerCase().equals("1")) {
+							int randDirection = randor.nextInt(4);
+							if(randDirection==0) {
+								for(int y = 0; y < rock1[0].length; y++) {
+									for(int x = -1; x < rock1.length-1; x++) {
+										for(int z = -1; z < rock1[0][0].length-1; z++) {
+											if(rock1[x+1][y][z+1]==1) {
+											Location loc2 = new Location(loc.getWorld(), loc.getX()+x, loc.getY()+y, loc.getZ()+z);
+											loc2.getBlock().setType(getRandStone(1));
+											}
+										}	
+									}
+								}
+							}
+							else if(randDirection==1) {
+								for(int y = 0; y < rock1[0].length; y++) {
+									for(int x = -1; x < rock1.length-1; x++) {
+										for(int z = -1; z < rock1[0][0].length-1; z++) {
+											if(rock1[x+1][y][z+1]==1) {
+											Location loc2 = new Location(loc.getWorld(), loc.getX()-x, loc.getY()+y, loc.getZ()+z);
+											loc2.getBlock().setType(getRandStone(1));
+											}
+										}	
+									}
+								}
+							}
+							else if(randDirection==2) {
+								for(int y = 0; y < rock1[0].length; y++) {
+									for(int x = -1; x < rock1.length-1; x++) {
+										for(int z = -1; z < rock1[0][0].length-1; z++) {
+											if(rock1[x+1][y][z+1]==1) {
+											Location loc2 = new Location(loc.getWorld(), loc.getX()+x, loc.getY()+y, loc.getZ()-z);
+											loc2.getBlock().setType(getRandStone(1));
+											}
+										}	
+									}
+								}
+							}
+							else if(randDirection==3) {
+								for(int y = 0; y < rock1[0].length; y++) {
+									for(int x = -1; x < rock1.length-1; x++) {
+										for(int z = -1; z < rock1[0][0].length-1; z++) {
+											if(rock1[x+1][y][z+1]==1) {
+											Location loc2 = new Location(loc.getWorld(), loc.getX()-x, loc.getY()+y, loc.getZ()-z);
+											loc2.getBlock().setType(getRandStone(1));
+											}
+										}	
+									}
+								}
+							}
+						}
+					//for (Player p : wor.getPlayers()) {
+					//	doCaveStuff(p);
+					//}
+					return true;
 				}
-				return true;
 			}
 		}
 	return true;
 	}
 
+	public Material getRandStone(int define) {
+		if(define == 1) {
+			if(randor.nextBoolean()==true) {
+				return Material.STONE;
+			}
+			else {
+				return Material.COBBLESTONE;
+			}
+		}
+		else {
+			return Material.AIR;
+		}
+	}
+	
 	//The Darkness
 	
 	@EventHandler
@@ -218,6 +342,28 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 				}
 			}
 		}
+		}
+		if(caveents==true) {
+		if(event.getEntity() instanceof Monster) {
+			Monster e = (Monster) event.getEntity();
+				if(e.getCustomName()!=null) {
+					if(e.getCustomName().equals("Watcher")||e.hasMetadata("Watcher")) {
+							effectEnts.add(event.getEntity());
+					}
+					else if(e.getCustomName().equals("Magma Monster")||e.hasMetadata("Magma Monster")) {
+						effectEnts.add(event.getEntity());
+					}
+					else if(e.getCustomName().equals("Dead Miner")||e.hasMetadata("Dead Miner")) {
+						effectEnts.add(event.getEntity());
+					}
+					else if(e.getCustomName().equals("Lava Creeper")||e.hasMetadata("Lava Creeper")) {
+						effectEnts.add(event.getEntity());
+					}
+					else if(e.getCustomName().equals("Smoke Demon")||e.hasMetadata("Smoke Demon")) {
+						effectEnts.add(event.getEntity());
+					}
+				}
+			}
 		}
 		}
 		catch(Exception e) {
@@ -245,10 +391,85 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 										e.getWorld().playSound(e.getLocation(), Sound.ENTITY_CAT_PURR, (float) .5, 0);
 									}
 								}
+								else if(name.equals("Watcher")||e.hasMetadata("Watcher")) {
+									LivingEntity e3 = ((Monster) e).getTarget();
+									if(getLookingAt2(e3, (LivingEntity) e)==false) {
+										Player p = (Player) e3;
+										Location loc = getBlockInFrontOfPlayer(p);
+										double newYaw = 0;
+										double newPitch = 0;
+										if (p.getLocation().getYaw() < 0) {
+											newYaw = p.getLocation().getYaw() + 180;
+										} else {
+											newYaw = p.getLocation().getYaw() - 180;
+										}
+										newPitch = p.getLocation().getPitch() * -1;
+										Location jumpLoc = new Location(p.getWorld(), loc.getX(), p.getLocation().getY(), loc.getZ(),
+												((float) newYaw), ((float) newPitch));
+										e.teleport(jumpLoc);
+										e.setVelocity(new Vector(0, 0, 0));
+										p.setVelocity(new Vector(0, 0, 0));
+										p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 30, 200));
+										p.getWorld().playSound(p.getLocation(), Sound.ENTITY_GHAST_HURT, 1, 2);
+										p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 80, 2));
+									}
+									}
+								else if(name.equals("Dead Miner")||e.hasMetadata("Dead Miner")) {
+									if(e.getLocation().getBlock().getLightLevel()==0) {
+										e.getLocation().getBlock().setType(Material.TORCH);
+									}
+								}
+								else if(name.equals("Magma Monster")||e.hasMetadata("Magma Monster")) {
+									if(randor.nextInt(14)==1) {
+										e.getLocation().getBlock().setType(Material.FIRE);
+									}
+									if(randor.nextInt(28)==1) {
+										e.getLocation().subtract(0, 1, 0).getBlock().setType(Material.MAGMA);
+									}
+								}
+								else if(name.equals("Lava Creeper")||e.hasMetadata("Lava Creeper")) {
+									if(randor.nextInt(24)==1) {
+										e.getWorld().spawnParticle(Particle.LAVA, e.getLocation().add(0, 1, 0), 1);
+									}
+								}
+								else if(name.equals("Smoke Demon")||e.hasMetadata("Smoke Demon")) {
+									if(e.getLocation().getBlock().getLightLevel()<12) {
+										List<Entity> ents = e.getNearbyEntities(3, 3, 3);
+										for(Entity es : ents) {
+											if(es instanceof LivingEntity) {
+												((LivingEntity) es).addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS,120,1));
+												((LivingEntity) es).addPotionEffect(new PotionEffect(PotionEffectType.WITHER,120,0));
+											}
+										}
+										e.getWorld().spawnParticle(Particle.CLOUD, e.getLocation().add(0, 1, 0), 60, 1,1,1,0.00f/*, m*/);
+									}
+									else {
+										e.remove();
+									}
+								}
+								}
+							}
+						}
+					else if(e instanceof Bat) {
+						String name = e2.getCustomName();
+						if(name!=null) {
+							if(name.equals("Crying Bat")||e.hasMetadata("Crying Bat")) {
+								if(randor.nextInt(30)==1) {
+									e.getWorld().playSound(e.getLocation(), Sound.ENTITY_WOLF_WHINE, 1, (float) (1.4+(randor.nextInt(5+1)/10.0)));
+									if(randor.nextInt(5)==1) {
+										((Bat) e).damage(999999);
+									}
+								}
 							}
 						}
 					}
-		}}}}}
+					}
+		}}}}
+	
+	public static Location getBlockInFrontOfPlayer(LivingEntity entsa) {
+		Vector inverseDirectionVec = entsa.getLocation().getDirection().normalize().multiply(1);
+		return entsa.getLocation().add(inverseDirectionVec);
+	}
 	
 	@EventHandler
 	public void onMobName(PlayerInteractEntityEvent event) {
@@ -258,7 +479,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 				if(i.hasItemMeta()) {
 					if(i.getItemMeta().hasDisplayName()) {
 						String s = i.getItemMeta().getDisplayName();
-						if(s.equals("The Darkness")) {
+						if(mobNames.contains(s)) {
 							removeItemNaturally(event.getPlayer());
 							if(event.getRightClicked() instanceof LivingEntity && (!(event.getRightClicked() instanceof Player))) {
 								((LivingEntity) event.getRightClicked()).setCustomName("");
@@ -285,11 +506,29 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	
 	@EventHandler
 	public void deleteLightLevel(CreatureSpawnEvent event) {
-		if(hungerdark==true) {
+		if(hungerdark==true||caveents==true) {
 		Entity e = event.getEntity();
-		if(e.getLocation().subtract(0, 1, 0).getBlock()==null||randor.nextInt(config.getInt("Darkness Spawn Chance ")+1)!=0) {
+		if(e.getLocation().subtract(0, 1, 0).getBlock()==null) {
 			return;
 		}
+		else if(randor.nextInt(config.getInt("Darkness Spawn Chance ")+1)!=0||hungerdark==false) {
+			if(caveents==true) {
+			if (e != null && !e.isDead()) {
+				if ((e instanceof Creeper || e instanceof Skeleton || e instanceof Zombie || e instanceof Spider) && (!(e instanceof PigZombie || e instanceof ZombieVillager || e instanceof Husk))) {
+					if ((e instanceof Monster && event.getSpawnReason() == SpawnReason.NATURAL && (e.getLocation().subtract(0, 1, 0).getBlock().getType()==Material.STONE || e.getLocation().subtract(0, 1, 0).getBlock().getType()==Material.DIRT))) {
+						if (e.getLocation().getY() < 50) {
+								doMobSpawns(e);
+							}
+					  }
+				}
+				}
+			}
+			else {
+				return;
+			}
+		}
+		else {
+			if(hungerdark==true) {
 		if (e != null && !e.isDead()) {
 		if ((e instanceof Creeper || e instanceof Skeleton || e instanceof Zombie || e instanceof Spider) && (!(e instanceof PigZombie || e instanceof ZombieVillager || e instanceof Husk))) {
 			if ((e instanceof Monster && event.getSpawnReason() == SpawnReason.NATURAL && (e.getLocation().subtract(0, 1, 0).getBlock().getType()==Material.STONE || e.getLocation().subtract(0, 1, 0).getBlock().getType()==Material.DIRT))) {
@@ -297,6 +536,8 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 					doDarkness(e);
 					}
 			  }
+		}
+		}
 		}
 		}
 		}
@@ -335,7 +576,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 			e.setMetadata(name, new FixedMetadataValue(this, 0));
 			e.setMetadata("R", new FixedMetadataValue(this, 0));
 			e.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 200, false, false));
-			e.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 999999, 200, false, false));
+			e.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 999999, 2, false, false));
 			e.addPotionEffect(new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 999999, 200, false, false));
 			e.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 999999, 3, false, false));
 			e.setSilent(true);
@@ -621,9 +862,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 			int cx = loc.getBlockX();
 			int cy = loc.getBlockY();
 			int cz = loc.getBlockZ();
-			p.getWorld().playSound(p.getLocation(), Sound.ENTITY_FIREWORK_BLAST_FAR, 100, 1);
-			p.getWorld().playSound(p.getLocation(), Sound.ENTITY_FIREWORK_BLAST_FAR, 100, 1);
-			p.getWorld().playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 100, 1);
+			p.getWorld().playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1, 1);
 			p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS,65 ,3));
 			for (int x = cx - radius; x <= cx + radius; x++) {
 				for (int z = cz - radius; z <= cz + radius; z++) {
@@ -675,6 +914,455 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 				p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW,120 ,1));
 				p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_DIGGING,55 ,1));
 			}
+			}
+		}
+		}
+	}
+	
+	//
+	
+	//Cave Mobs
+	
+	public String mobTypes() {
+		int choice = randor.nextInt(9);
+		if(choice == 0) {
+			return "Watcher";
+		}
+		else if(choice == 1) {
+			return "TnT Infused Creeper";
+		}
+		else if(choice == 2) {
+			return "Dead Miner";
+		}
+		else if(choice == 3) {
+			return "Lava Creeper";
+		}
+		else if(choice == 4) {
+			return "Magma Monster";
+		}
+		else if(choice == 5) {
+			return "Smoke Demon";
+		}
+		else if(choice == 6) {
+			if(randor.nextInt(20)==1) {
+			return "Crying Bat";
+			}
+			else {
+				return "";
+			}
+		}
+		else if(choice == 7) {
+			return "Alpha Spider";
+		}
+		else if(choice == 8) {
+			return "Hexed Armor";
+		}
+		return "";
+	}
+	
+	public void doMobSpawns(Entity entitye) {
+			LivingEntity e = (LivingEntity) entitye;
+			String name = mobTypes();
+			if (e != null && !e.isDead()) {
+				if(name.equals("Watcher")) {
+					//now teleports in front of the player if the player looks away from it
+					Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.HUSK);
+					e.remove();
+					e = (LivingEntity) e2;
+					e.setSilent(true);
+					((LivingEntity) e).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 200));
+					EntityEquipment ee = ((LivingEntity) e).getEquipment();
+					ItemStack myAwesomeSkull = new ItemStack(Material.SKULL_ITEM, 1, (short) 3);
+					SkullMeta myAwesomeSkullMeta = (SkullMeta) myAwesomeSkull.getItemMeta();
+					myAwesomeSkullMeta.setOwner("Creegn");
+					myAwesomeSkull.setItemMeta(myAwesomeSkullMeta);
+					ee.setHelmet(myAwesomeSkull);
+					ee.setHelmetDropChance(0);
+					e.setCustomName(name);
+					e.setMetadata(name, new FixedMetadataValue(this, 0));
+					e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+				else if(name.equals("TnT Infused Creeper")) {
+					if(e.getType()!=EntityType.CREEPER) {
+					Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.CREEPER);
+					e.remove();
+					e = (LivingEntity) e2;
+					}
+					e.setCustomName(name);
+					e.setMetadata(name, new FixedMetadataValue(this, 0));
+					e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+				else if(name.equals("Lava Creeper")) {
+					if(e.getType()!=EntityType.CREEPER) {
+					Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.CREEPER);
+					e.remove();
+					e = (LivingEntity) e2;
+					}
+					e.setCustomName(name);
+					e.setMetadata(name, new FixedMetadataValue(this, 0));
+					e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+				else if(name.equals("Dead Miner")) {
+					if(e.getType()!=EntityType.ZOMBIE) {
+					Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.ZOMBIE);
+					e.remove();
+					e = (LivingEntity) e2;
+					}
+					EntityEquipment ee = ((LivingEntity) e).getEquipment();
+					ItemStack myAwesomeSkull = new ItemStack(Material.SKULL_ITEM, 1, (short) 3);
+					SkullMeta myAwesomeSkullMeta = (SkullMeta) myAwesomeSkull.getItemMeta();
+					myAwesomeSkullMeta.setOwner("wallabee");
+					myAwesomeSkull.setItemMeta(myAwesomeSkullMeta);
+					ee.setHelmet(myAwesomeSkull);
+					ee.setHelmetDropChance(0);
+					setMinerHands(e);
+					e.setCustomName(name);
+					e.setMetadata(name, new FixedMetadataValue(this, 0));
+					e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+				else if(name.equals("Magma Monster")) {
+					if(e.getType()!=EntityType.ZOMBIE) {
+						Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.ZOMBIE);
+						e.remove();
+						e = (LivingEntity) e2;
+					}
+					EntityEquipment ee = (e).getEquipment();
+					e.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 999999, 100, false, false));
+					e.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 100, false, false));
+					ItemStack lchest = new ItemStack(Material.LEATHER_CHESTPLATE, 1);
+					LeatherArmorMeta lch6 = (LeatherArmorMeta) lchest.getItemMeta();
+					lch6.setColor(Color.fromRGB(252, 115, 69));
+					lchest.setItemMeta(lch6);
+					ItemStack lchest2 = new ItemStack(Material.LEATHER_BOOTS, 1);
+					LeatherArmorMeta lch61 = (LeatherArmorMeta) lchest2.getItemMeta();
+					lch61.setColor(Color.fromRGB(252, 115, 69));
+					lchest2.setItemMeta(lch61);
+					ItemStack lchest3 = new ItemStack(Material.LEATHER_LEGGINGS, 1);
+					LeatherArmorMeta lch62 = (LeatherArmorMeta) lchest3.getItemMeta();
+					lch62.setColor(Color.fromRGB(252, 115, 69));
+					lchest3.setItemMeta(lch62);
+					ee.setItemInMainHand(new ItemStack(Material.FIRE, 1));
+					ee.setItemInOffHand(new ItemStack(Material.FIRE, 1));
+					ee.setChestplate(lchest);
+					ee.setLeggings(lchest3);
+					ee.setBoots(lchest2);
+					e.setFireTicks(999999);
+					e.setCustomName(name);
+					e.setSilent(true);
+					e.setMetadata(name, new FixedMetadataValue(this, 0));
+					e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+				else if(name.equals("Smoke Demon")) {
+					if(e.getType()!=EntityType.ZOMBIE) {
+						Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.ZOMBIE);
+						e.remove();
+						e = (LivingEntity) e2;
+					}
+					((LivingEntity) e).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 1, false, false));
+					e.setSilent(true);
+					e.setCustomName(name);
+					e.setMetadata(name, new FixedMetadataValue(this, 0));
+					e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+				else if(name.equals("Crying Bat")) {
+					if(e.getType()!=EntityType.BAT) {
+						Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.BAT);
+						e.remove();
+						e = (LivingEntity) e2;
+					}
+					e.setCustomName(name);
+					e.setMetadata(name, new FixedMetadataValue(this, 0));
+					e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+				else if(name.equals("Alpha Spider")) {
+					if(!(e.getType()==EntityType.SPIDER||e.getType()==EntityType.CAVE_SPIDER)) {
+						Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.SPIDER);
+						e.remove();
+						e = (LivingEntity) e2;
+					}
+					e.setCustomName(name);
+					e.setMetadata(name, new FixedMetadataValue(this, 0));
+					e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+				else if(name.equals("Hexed Armor")) {
+				if(e.getType()!=EntityType.ZOMBIE||e.getType()!=EntityType.SKELETON) {
+					Entity e2 = e.getWorld().spawnEntity(e.getLocation(), EntityType.ZOMBIE);
+					e.remove();
+					e = (LivingEntity) e2;
+				}
+				((LivingEntity) e).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 1, false, false));
+				DressCursed.dressDGolem((LivingEntity) e);
+				e.setSilent(true);
+				e.setCustomName(name);
+				e.setMetadata(name, new FixedMetadataValue(this, 0));
+				e.setMetadata("R", new FixedMetadataValue(this, 0));
+				}
+			}
+			return;
+	}
+	
+	public void setMinerHands(Entity e) {
+		EntityEquipment ee = ((LivingEntity) e).getEquipment();
+		// 0 == wood 1 == stone 2 == iron
+		// 0 == left handed 1 == right handed
+		// boolean true = torch in other hand
+		int type = randor.nextInt(3);
+		boolean holdtorch = randor.nextBoolean();
+		int handside = randor.nextInt(2);
+		boolean hasboots = randor.nextBoolean();
+		boolean haschest = randor.nextBoolean();
+		ItemStack pickaxe = null;
+		if(type == 0) {
+			pickaxe = new ItemStack(Material.WOOD_PICKAXE);
+		}
+		else if(type == 1) {
+			pickaxe = new ItemStack(Material.STONE_PICKAXE);
+		}
+		else if(type == 2) {
+			pickaxe = new ItemStack(Material.IRON_PICKAXE);
+		}
+		if(handside == 0) {
+			ee.setItemInOffHand(pickaxe);
+			if(holdtorch == true) {
+				ee.setItemInMainHand(new ItemStack(Material.TORCH, 1));
+			}
+		}
+		else {
+			ee.setItemInMainHand(pickaxe);
+			if(holdtorch == true) {
+				ee.setItemInOffHand(new ItemStack(Material.TORCH, 1));
+			}
+		}
+		if(hasboots==true) {
+			if(randor.nextBoolean()==true) {
+				ee.setBoots(new ItemStack(Material.LEATHER_BOOTS, 1));
+			}
+			else {
+				ee.setBoots(new ItemStack(Material.CHAINMAIL_BOOTS, 1));
+			}
+		}
+		if(haschest==true) {
+			if(randor.nextBoolean()==true) {
+				ee.setChestplate(new ItemStack(Material.LEATHER_CHESTPLATE, 1));
+			}
+			else {
+				ee.setChestplate(new ItemStack(Material.CHAINMAIL_CHESTPLATE, 1));
+			}
+		}
+	}
+	
+	@EventHandler
+	public void entityHit(EntityDamageByEntityEvent event) {
+		if (event.getDamager() instanceof Monster && event.getEntity() instanceof Player) {
+			boolean isMagma = false;
+			if((event.getDamager()).hasMetadata("Magma Monster")) {
+				isMagma = true;
+			}
+			else if(event.getDamager().getCustomName() != null) {
+				if (event.getDamager().getCustomName().equals("Magma Monster")){
+					isMagma = true;
+				}
+			}
+			if(isMagma == true) {
+				if (randor.nextInt(2) == 1) {
+					((LivingEntity) event.getEntity()).setFireTicks(60);
+				}
+				return;
+			}
+			boolean isAlpha = false;
+			if((event.getDamager()).hasMetadata("Alpha Spider")) {
+				isAlpha = true;
+			}
+			else if(event.getDamager().getCustomName() != null) {
+				if (event.getDamager().getCustomName().equals("Alpha Spider")){
+					isAlpha = true;
+				}
+			}
+			if(isAlpha == true) {
+				if (randor.nextInt(2) == 1) {
+					if (randor.nextInt(5) == 1) {
+						event.getEntity().getLocation().getBlock().setType(Material.WEB);
+						event.getEntity().getLocation().add(0, 1, 0).getBlock().setType(Material.WEB);
+						Location loc = event.getEntity().getLocation();
+						if (randor.nextInt(15) == 1) {
+							event.getDamager().getWorld().spawnEntity(event.getDamager().getLocation(),
+									EntityType.CAVE_SPIDER);
+						}
+						int radius = 4;
+						int cx = loc.getBlockX();
+						int cy = loc.getBlockY();
+						int cz = loc.getBlockZ();
+						for (int x = cx - radius; x <= cx + radius; x++) {
+							for (int z = cz - radius; z <= cz + radius; z++) {
+								for (int y = (cy - radius); y < (cy + radius); y++) {
+									double dist = (cx - x) * (cx - x) + (cz - z) * (cz - z) + ((cy - y) * (cy - y));
+
+									if (dist < radius * radius) {
+										Location l = new Location(loc.getWorld(), x, y, z);
+										if (randor.nextInt(7) == 1) {
+											if (l.getBlock().getType() == Material.AIR) {
+												l.getBlock().setType(Material.WEB);
+											}
+										}
+									}
+								}
+
+							}
+						}
+					}
+					((LivingEntity) event.getEntity())
+					.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 75, 1));
+				}
+				return;
+			}
+			boolean isCurse = false;
+			if((event.getDamager()).hasMetadata("Hexed Armor")) {
+				isCurse = true;
+			}
+			else if(event.getDamager().getCustomName() != null) {
+				if (event.getDamager().getCustomName().equals("Hexed Armor")){
+					isCurse = true;
+				}
+			}
+			if(isCurse == true) {
+				if (randor.nextInt(5) == 1) {
+					Monster m = (Monster) event.getDamager();
+					Player p = (Player) event.getEntity();
+					ItemStack[] armor = p.getInventory().getArmorContents();
+					for (ItemStack i2 : armor) {
+						if (i2 != null) {
+							if (i2.getType() != null) {
+								if (i2.getType() != Material.AIR) {
+									p.getWorld().dropItemNaturally(m.getLocation(), i2);
+								}
+							}
+						}
+					}
+					p.getInventory().setArmorContents(m.getEquipment().getArmorContents());
+					m.getEquipment().clear();
+					m.remove();
+				}
+				return;
+			}
+		}
+		if (event.getDamager() instanceof Player && event.getEntity() instanceof Monster) {
+			if(randor.nextInt(6)==1) {
+				boolean isTNT = false;
+				if((event.getEntity()).hasMetadata("TnT Infused Creeper")) {
+					isTNT = true;
+				}
+				else if(event.getEntity().getCustomName() != null) {
+					if (event.getEntity().getCustomName().equals("TnT Infused Creeper")){
+						isTNT = true;
+					}
+				}
+				if(isTNT == true) {
+					event.getDamager().getWorld().createExplosion(event.getDamager().getLocation(), (float) 0.01);
+					return;
+				}
+			}
+			if(randor.nextInt(6)==1) {
+				boolean isMine = false;
+				if((event.getEntity()).hasMetadata("Dead Miner")) {
+					isMine = true;
+				}
+				else if(event.getEntity().getCustomName() != null) {
+					if (event.getEntity().getCustomName().equals("Dead Miner")){
+						isMine = true;
+					}
+				}
+				if(isMine == true) {
+					// 0 == cobblestone 1 == dirt 2 == coal 3 == torch 
+					int choice = randor.nextInt(4);
+					if(choice == 0) {
+						event.getEntity().getWorld().dropItemNaturally(event.getEntity().getLocation(), new ItemStack(Material.COBBLESTONE, randor.nextInt(3+1)));
+					}
+					else if(choice == 1) {
+						event.getEntity().getWorld().dropItemNaturally(event.getEntity().getLocation(), new ItemStack(Material.DIRT, randor.nextInt(3+1)));
+					}
+					else if(choice == 2) {
+						event.getEntity().getWorld().dropItemNaturally(event.getEntity().getLocation(), new ItemStack(Material.COAL, randor.nextInt(2+1)));
+					}
+					else if(choice == 3) {
+						event.getEntity().getWorld().dropItemNaturally(event.getEntity().getLocation(), new ItemStack(Material.TORCH, randor.nextInt(3+1)));
+					}
+					return;
+				}
+			}
+		}
+	}
+	
+	@EventHandler
+	public void onCreeperExplode(EntityExplodeEvent event) {
+		if(!event.isCancelled()) {
+		if(event.getEntity().getType()==EntityType.CREEPER) {
+			boolean isTNT = false;
+			if((event.getEntity()).hasMetadata("TnT Infused Creeper")) {
+				isTNT = true;
+			}
+			else if(event.getEntity().getCustomName() != null) {
+				if (event.getEntity().getCustomName().equals("TnT Infused Creeper")){
+					isTNT = true;
+				}
+			}
+			if(isTNT == true) {
+				Location l = event.getEntity().getLocation();
+				Entity e1 = event.getEntity().getWorld().spawnEntity(l, EntityType.PRIMED_TNT);
+				e1.setVelocity(new Vector(-1*(randor.nextInt(5+1)/10.0),randor.nextInt(5+1)/10.0,-1*(randor.nextInt(5+1)/10.0)));
+				if(randor.nextBoolean()==true) {
+					Entity e2 = event.getEntity().getWorld().spawnEntity(l, EntityType.PRIMED_TNT);
+					e2.setVelocity(new Vector(randor.nextInt(5+1)/10.0,randor.nextInt(5+1)/10.0,randor.nextInt(5+1)/10.0));
+				}
+				return;
+			}
+			boolean isLava = false;
+			if((event.getEntity()).hasMetadata("Lava Creeper")) {
+				isLava = true;
+			}
+			else if(event.getEntity().getCustomName() != null) {
+				if (event.getEntity().getCustomName().equals("Lava Creeper")){
+					isLava = true;
+				}
+			}
+			if(isLava == true) {
+				Location l = event.getEntity().getLocation();
+				if (wor != null) {
+					Random rand = new Random();
+					Location loc = l;
+					int radius = 4;
+					int cx = loc.getBlockX();
+					int cy = loc.getBlockY();
+					int cz = loc.getBlockZ();
+					for (int x = cx - radius; x <= cx + radius; x++) {
+						for (int z = cz - radius; z <= cz + radius; z++) {
+							for (int y = (cy - radius); y < (cy + radius); y++) {
+								double dist = (cx - x) * (cx - x) + (cz - z) * (cz - z) + ((cy - y) * (cy - y));
+
+								if (dist < radius * radius) {
+										Location l2 = new Location(loc.getWorld(), x, y, z);
+										if(l2.getBlock().getType()==Material.AIR) {
+											if(randor.nextInt(3)==1) {
+												l2.getBlock().setType(Material.FIRE);
+											}
+										}
+										else if(l2.getBlock().getType()!=Material.AIR) {
+											if(randor.nextInt(4)==1) {
+												l2.getBlock().setType(Material.MAGMA);
+											}
+											else if(randor.nextInt(5)==1) {
+												l2.getBlock().setType(Material.OBSIDIAN);
+											}
+											else if(randor.nextInt(6)==1) {
+												l2.getBlock().setType(Material.STATIONARY_LAVA);
+											}
+										}
+								}
+
+							}
+						}
+					}
+				}
+				return;
 			}
 		}
 		}

@@ -1,7 +1,7 @@
 main: mainPackage.main
 name: DangerousCaves
 version: 1.0
-author: Evil_Boi
+author: DaddyLootly
 description: Adds and improves mechanics in caves.
 
 commands:

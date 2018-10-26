@@ -33,7 +33,7 @@ public class ChestRandomizer {
 		List<ItemStack> items = new ArrayList<ItemStack>();
 		int randomAmmount = randor.nextInt(10)+2;
 		for(int i = 0; i < randomAmmount; i++) {
-			int choice = randor.nextInt(23);
+			int choice = randor.nextInt(24);
 			if(choice == 0) {
 				items.add(new ItemStack(Material.WOOD, randor.nextInt(7)+1));
 			}
@@ -102,6 +102,16 @@ public class ChestRandomizer {
 			}
 			else if(choice == 22) {
 				items.add(new ItemStack(Material.SUGAR_CANE, randor.nextInt(3)+1));
+			}
+			else if(choice == 23) {
+				try {
+					if(main.itemcustom.size()>0) {
+						items.add(new ItemStack(Material.getMaterial(main.itemcustom.get(randor.nextInt(main.itemcustom.size()))), randor.nextInt(3)+1));
+					}
+				}
+				catch(Exception e) {
+					
+				}
 			}
 		}
 		return items;

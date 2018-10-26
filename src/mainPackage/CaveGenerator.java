@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -93,16 +94,24 @@ public class CaveGenerator extends BlockPopulator {
 		int cXOff = cX + rand.nextInt(10);
 		int cZOff = cZ + rand.nextInt(10);
     		if(typeC==0) {
+    			if(randor.nextInt(main.plrate+1)==0) {
     			randomShape(cXOff, cZOff, wor);
+    			}
     		}
     		else if(typeC==1) {
+    			if(randor.nextInt(main.blrate+1)==0) {
     			randomBoulder(cXOff, cZOff, wor);
+    			}
     		}
     		else if(typeC==2) {
+    			if(randor.nextInt(main.trrate+1)==0) {
     			randomTrap(cXOff, cZOff, wor);
+    			}
     		}
     		else if(typeC==3) {
+    			if(randor.nextInt(main.strate+1)==0) {
     			randomStructure(cXOff, cZOff, wor);
+    			}
     		}
 		}
 	}
@@ -138,6 +147,7 @@ public class CaveGenerator extends BlockPopulator {
 	}
 	
 	public int getClosestAir(int cXOff, int cZOff, World w) {
+		try {
 		Location loc = new Location(w, cXOff, 1, cZOff);
 		while(loc.getY()<55) {
 			loc.add(0, 1, 0);
@@ -152,6 +162,10 @@ public class CaveGenerator extends BlockPopulator {
 			}
 		}
 		return (int) loc.getY();
+		}
+		catch(Exception error) {
+			return 1;
+		}
 	}
 	
 	public Material getRandStone(int define) {
@@ -169,6 +183,7 @@ public class CaveGenerator extends BlockPopulator {
 	}
 	
 	public void randomShape(int cXOff, int cZOff, World w) {
+		try {
 		int yVal = getClosestAir(cXOff, cZOff, w);
 		if(yVal == 55) {
 			return;
@@ -301,8 +316,13 @@ public class CaveGenerator extends BlockPopulator {
 		}
 	  }
 	}
+	catch(Exception error) {
+			
+	}
+	}
 	
 	public void randomBoulder(int cXOff, int cZOff, World w) {
+		try {
 		int yVal = getClosestAir(cXOff, cZOff, w);
 		if(yVal == 55) {
 			return;
@@ -335,9 +355,13 @@ public class CaveGenerator extends BlockPopulator {
 				generateBoulder(rock8, loc);
 			}
 		}
+		}
+		catch(Exception error) {
+		}
 	}
 	
 	public void randomTrap(int cXOff, int cZOff, World w) {
+		try {
 		int yVal = getClosestAir(cXOff, cZOff, w);
 		if(yVal == 55) {
 			return;
@@ -429,9 +453,13 @@ public class CaveGenerator extends BlockPopulator {
 		        inv.addItem(new ItemStack(Material.ARROW, randor.nextInt(3)+1));
 			}
 		}
+		}
+		catch(Exception error) {
+		}
 	}
 	
 	public void randomStructure(int cXOff, int cZOff, World w) {
+		try {
 		int yVal = getClosestAir(cXOff, cZOff, w);
 		if(yVal == 55) {
 			return;
@@ -543,6 +571,9 @@ public class CaveGenerator extends BlockPopulator {
 				generateStructure(sfishs3, loc);
 			}
 		}
+		}
+		catch(Exception error) {
+		}
 	}
 	
 	public void decideBlock(int type, Block b) {
@@ -614,6 +645,7 @@ public class CaveGenerator extends BlockPopulator {
 	}
 	
 	public void generateStructure(int[][][] rock, Location loc) {
+		try {
 		int randDirection = randor.nextInt(4);
 		if(randDirection==0) {
 			for(int y = 0; y < rock[0].length; y++) {
@@ -654,10 +686,14 @@ public class CaveGenerator extends BlockPopulator {
 					}	
 				}
 			}
+		}
+		}
+		catch(Exception error) {
 		}
 	}
 	
 	public void generateBoulder(int[][][] rock, Location loc) {
+		try {
 		int randDirection = randor.nextInt(4);
 		if(randDirection==0) {
 			for(int y = 0; y < rock[0].length; y++) {
@@ -706,6 +742,9 @@ public class CaveGenerator extends BlockPopulator {
 					}	
 				}
 			}
+		}
+		}
+		catch(Exception error) {
 		}
 	}
 	

@@ -2,6 +2,7 @@ package mainPackage;
 
 import java.util.Random;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack;
@@ -19,7 +20,7 @@ public class DressCursed {
 	public static Random rand = new Random();
 	
 	public static void dressDGolem(LivingEntity s) {
-		
+		try {
 		EntityEquipment ee = (s).getEquipment();
 		//chest
 		ItemStack lchest = new ItemStack(getArmor(1), 1);
@@ -60,6 +61,9 @@ public class DressCursed {
 		i.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 		lchest4.setItemMeta(i);
 		ee.setBoots(lchest4);
+		}
+		}
+		catch(Exception error) {
 		}
 	}
 	

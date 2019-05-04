@@ -103,7 +103,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 	FileConfiguration config = getConfig();
 	public ConsoleCommandSender console = getServer().getConsoleSender();
 	Random randor = new Random();
-	//public World wor = null;
+	public World wor = null;
 	boolean hasWorlds = false;
 	public static List<String> worlds = new ArrayList<String>();
 	public boolean canSave = false;
@@ -150,7 +150,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 		mobNames.add(config.getString("Smoke Demon = "));
 		mobNames.add(config.getString("Alpha Spider = "));
 		mobNames.add(config.getString("Dead Miner = "));
-		mobNames.add(config.getString("Hexed Armor = "));
+		mobNames.add(config.getString("Hexed Armour = "));
 		itemcustom = (List<String>) config.getList("Items that can spawn in chests ");
 		hotmessage = (List<String>) config.getList("Temperature Messages ");
 		worlds = (List<String>) config.getList("Enabled Worlds - If Left Blank Will Just Use default world ");
@@ -324,27 +324,27 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 		listitem3.add("TORCH");
 		listitem3.add("DIRT");
 		config.addDefault("Items that can spawn in chests ", listitem3);
-		//config.getString("Dead Miner = ")
+		config.getString("Dead Miner = ")
 		config.options().copyDefaults(true);
 		saveConfig();
 	}
 	
 	@EventHandler
 	public void setWorld(PlayerJoinEvent e) {
-		//for(String namew : worlds) {
-			//World wor = Bukkit.getWorld(namew);
-			//wor = e.getPlayer().getWorld();
-			//List<BlockPopulator> bp = new ArrayList<BlockPopulator>(wor.getPopulators());
-			//for(BlockPopulator bps : bp) {
-			//	if(bps.toString().length()>=25) {
-			//		if(bps.toString().substring(0, 25).equals("mainPackage.CaveGenerator")) {
-			//			wor.getPopulators().remove(bps);
-			//		}
-			//	}
-			//}
-			//wor.getPopulators().clear();
-			//wor.getPopulators().add(new CaveGenerator());
-			//console.sendMessage("" + e.getPlayer().getWorld().getPopulators());
+		for(String namew : worlds) {
+			World wor = Bukkit.getWorld(namew);
+			wor = e.getPlayer().getWorld();
+			List<BlockPopulator> bp = new ArrayList<BlockPopulator>(wor.getPopulators());
+			for(BlockPopulator bps : bp) {
+				if(bps.toString().length()>=25) {
+					if(bps.toString().substring(0, 25).equals("mainPackage.CaveGenerator")) {
+						wor.getPopulators().remove(bps);
+					}
+				}
+			}
+			wor.getPopulators().clear();
+			wor.getPopulators().add(new CaveGenerator());
+			console.sendMessage("" + e.getPlayer().getWorld().getPopulators());
 		if(hasWorlds==false) {
 			caveins = config.getBoolean("Enable Cave-Ins ");
 			hungerdark = config.getBoolean("Enable Hungering Darkness ");
@@ -355,7 +355,7 @@ public class main extends JavaPlugin implements Listener, CommandExecutor{
 			cavechance = config.getInt("Cave Structure Chance ");
 			cavestruct = config.getBoolean("Enable Cave Structures ");
 		}
-		//}
+		}
 	}
 	
 	@Override

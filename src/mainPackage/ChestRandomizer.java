@@ -26,7 +26,7 @@ public class ChestRandomizer {
         		 
         	 }
          }
-         //chest.update();
+         chest.update();
 	}
 	
 	public static List<ItemStack> getItems(){
